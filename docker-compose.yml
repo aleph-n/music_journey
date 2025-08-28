@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  etl-script:
+    # Build the Docker image from the Dockerfile in the current directory
+    build: .
+    # Mount volumes to link directories between your computer (host) and the container
+    volumes:
+      # Link the local ./data folder to /app/data inside the container (read-only)
+      - ./data:/app/data:ro
+      # Link the local ./output folder to /app/output inside the container (for the database)
+      - ./output:/app/output
+
