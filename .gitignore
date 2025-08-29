@@ -6,6 +6,15 @@ __pycache__/
 # Output directory for the database
 /output/
 
+# Data directory
+data/
+
+# Backup directory
+backup/
+
+# Local configuration
+config.env
+
 # Environment directories
 .env
 .venv

@@ -65,5 +65,3 @@ def build_data_warehouse():
 
     print("\nData Warehouse build process completed successfully!")
 
-if __name__ == "__main__":
-    build_data_warehouse()
