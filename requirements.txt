@@ -1,3 +1,4 @@
 pandas
 SQLAlchemy
-pyyaml
+spotipy
+python-dotenv

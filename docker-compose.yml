@@ -1,13 +1,16 @@
 version: '3.8'
 
 services:
-  etl-script:
-    # Build the Docker image from the Dockerfile in the current directory
+  dwh-manager:
     build: .
-    # Mount volumes to link directories between your computer (host) and the container
+    env_file:
+      - .env
     volumes:
-      # Link the local ./data folder to /app/data inside the container (read-only)
+      # Mount the main script and source directory to reflect code changes instantly
+      - ./main.py:/app/main.py
+      - ./src:/app/src
+      # Keep existing volume mounts for data, output, and cache
       - ./data:/app/data:ro
-      # Link the local ./output folder to /app/output inside the container (for the database)
       - ./output:/app/output
+      - ./.cache:/app/.cache
 

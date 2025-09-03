@@ -14,5 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Command to run the python script
-CMD ["python", "main.py"]
-
+CMD ["python", "src/spotify_auth_test.py"]
