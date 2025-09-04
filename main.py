@@ -2,6 +2,7 @@ import argparse
 from src.build_dwh import build_data_warehouse
 from src.spotify_playlists import spotify_playlists
 from src.spotify_auth_test import test_spotify_auth
+from src.backup_dwh import backup_database_to_csv # Import the new function
 
 def main():
     """Main entrypoint for the project CLI."""
@@ -26,6 +27,10 @@ def main():
     # Command: test-auth
     parser_auth = subparsers.add_parser('test-auth', help='Tests Spotify authentication.')
     parser_auth.set_defaults(func=test_spotify_auth)
+
+    # Command: backup
+    parser_backup = subparsers.add_parser('backup', help='Exports the SQLite database back to CSV files.')
+    parser_backup.set_defaults(func=backup_database_to_csv)
 
     args = parser.parse_args()
     

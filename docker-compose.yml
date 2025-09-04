@@ -3,14 +3,13 @@ version: '3.8'
 services:
   dwh-manager:
     build: .
-    env_file:
-      - .env
     volumes:
-      # Mount the main script and source directory to reflect code changes instantly
-      - ./main.py:/app/main.py
-      - ./src:/app/src
-      # Keep existing volume mounts for data, output, and cache
-      - ./data:/app/data:ro
+      # Mount the data directory as read-write (by removing ':ro')
+      - ./data:/app/data
+      # Mount other necessary directories and files
       - ./output:/app/output
       - ./.cache:/app/.cache
-
+      - ./src:/app/src
+      - ./main.py:/app/main.py
+    env_file:
+      - .env
