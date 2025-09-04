@@ -2,7 +2,7 @@ import argparse
 from src.build_dwh import build_data_warehouse
 from src.spotify_playlists import spotify_playlists
 from src.spotify_auth_test import test_spotify_auth
-from src.backup_dwh import backup_database_to_csv # Import the new function
+from src.backup_dwh import backup_database_to_csv
 
 def main():
     """Main entrypoint for the project CLI."""
@@ -22,6 +22,13 @@ def main():
         default=None,
         help='(Optional) The name of a single journey to process.'
     )
+    # --- ADD THIS ARGUMENT ---
+    parser_playlist.add_argument(
+        '--recreate',
+        action='store_true', # This makes it a flag, e.g., --recreate
+        help='(Optional) Deletes existing playlists and creates them from scratch.'
+    )
+    # --- END OF ADDITION ---
     parser_playlist.set_defaults(func=spotify_playlists)
     
     # Command: test-auth
@@ -36,10 +43,10 @@ def main():
     
     # Call the function associated with the chosen command
     if args.command == 'playlist':
-        args.func(args.name)
+        # --- MODIFY THIS CALL to pass the new argument ---
+        args.func(journey_name_filter=args.name, recreate=args.recreate)
     else:
         args.func()
 
 if __name__ == "__main__":
     main()
-

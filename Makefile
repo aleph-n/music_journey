@@ -8,6 +8,10 @@ playlist:
 	@echo "--- Creating/Updating Spotify Playlists ---"
 	@docker-compose run --rm dwh-manager python main.py playlist
 
+playlist-recreate:
+	@echo "--- FORCE RECREATING all Spotify Playlists ---"
+	@docker-compose run --rm dwh-manager python main.py playlist --recreate
+
 test-auth:
 	@echo "--- Testing Spotify Authentication ---"
 	@docker-compose run --rm dwh-manager python main.py test-auth
