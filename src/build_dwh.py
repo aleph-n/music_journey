@@ -36,25 +36,98 @@ def build_data_warehouse():
     engine = create_engine(f'sqlite:///{DB_PATH}')
     print(f"Database engine created. DWH will be built at: {DB_PATH}")
 
-    # --- Create DimPlaylist Table with Schema ---
+    # --- Drop and Recreate All Tables ---
     with engine.connect() as connection:
-        # Drop the table if it exists to ensure a clean state
-        print("Ensuring a clean state for 'DimPlaylist' table...")
-        connection.execute(text("DROP TABLE IF EXISTS DimPlaylist"))
-        
-        # Create the table with the correct composite PRIMARY KEY
-        print("Creating 'DimPlaylist' table with correct schema...")
+        for table_name in TABLES.keys():
+            print(f"Dropping table if exists: {table_name}")
+            connection.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
+        print("Recreating all tables with updated schema...")
+        # DimMusicalWork
         connection.execute(text("""
-            CREATE TABLE "DimPlaylist" (
-                "JourneyID" TEXT,
-                "ServiceID" TEXT,
-                "ServicePlaylistID" TEXT,
-                "LastUpdatedUTC" TEXT,
-                PRIMARY KEY ("JourneyID", "ServiceID")
+            CREATE TABLE DimMusicalWork (
+                WorkID TEXT PRIMARY KEY,
+                WorkType TEXT,
+                Genre TEXT,
+                PrimaryArtist TEXT,
+                Title TEXT,
+                WorkDescription TEXT
+            );
+        """))
+        # DimPerformer
+        connection.execute(text("""
+            CREATE TABLE DimPerformer (
+                PerformerID TEXT PRIMARY KEY,
+                PerformerName TEXT,
+                InstrumentOrRole TEXT
+            );
+        """))
+        # DimAlbum
+        connection.execute(text("""
+            CREATE TABLE DimAlbum (
+                AlbumID TEXT PRIMARY KEY,
+                AlbumTitle TEXT,
+                PrimaryArtist TEXT,
+                SpotifyURI TEXT,
+                RecordingLabel TEXT
+            );
+        """))
+        # DimMovement
+        connection.execute(text("""
+            CREATE TABLE DimMovement (
+                MovementID TEXT PRIMARY KEY,
+                WorkID TEXT,
+                MovementNumber TEXT,
+                MovementTitle TEXT,
+                MovementDescription TEXT
+            );
+        """))
+        # DimRecording
+        connection.execute(text("""
+            CREATE TABLE DimRecording (
+                RecordingID TEXT PRIMARY KEY,
+                AlbumID TEXT,
+                MovementID TEXT,
+                WorkID TEXT,
+                PerformerID TEXT,
+                SpotifyURI TEXT
+            );
+        """))
+        # DimJourney
+        connection.execute(text("""
+            CREATE TABLE DimJourney (
+                JourneyID TEXT PRIMARY KEY,
+                JourneyName TEXT,
+                JourneyDescription TEXT,
+                CreatorName TEXT,
+                Granularity TEXT,
+                JourneyTheme TEXT
+            );
+        """))
+        # FactJourneyStep
+        connection.execute(text("""
+            CREATE TABLE FactJourneyStep (
+                JourneyStepID TEXT PRIMARY KEY,
+                JourneyID TEXT,
+                RecordingID TEXT,
+                StepOrder TEXT,
+                ActNumber TEXT,
+                ActTitle TEXT,
+                CurationNotes TEXT,
+                WhyThisRecording TEXT
+            );
+        """))
+        # DimPlaylist
+        connection.execute(text("""
+            CREATE TABLE DimPlaylist (
+                JourneyID TEXT,
+                ServiceID TEXT,
+                ServicePlaylistID TEXT,
+                LastUpdatedUTC TEXT,
+                PRIMARY KEY (JourneyID, ServiceID)
             );
         """))
         connection.commit()
-        print("'DimPlaylist' table created successfully.")
+        print("All tables created successfully.")
 
     # --- Loop Through Tables and Load Data ---
     for table_name, csv_file in TABLES.items():
@@ -65,25 +138,23 @@ def build_data_warehouse():
             df = pd.read_csv(csv_path)
 
             # --- START DATA CLEANING FIX ---
-            # Check if this is the DimRecording table and if SpotifyURI column exists
             if table_name == 'DimRecording' and 'SpotifyURI' in df.columns:
                 print(f"   -> Cleaning SpotifyURI column in {csv_file}...")
-                # Remove any character that is not a letter, number, colon, or hyphen.
-                # This is a very aggressive clean that will fix hidden character issues.
-                df['SpotifyURI'] = df['SpotifyURI'].str.replace(r'[^a-zA-Z0-9:-]', '', regex=True)
-                print(f"   -> Cleaning complete.")
+                if df['SpotifyURI'].dtype == object:
+                    df['SpotifyURI'] = df['SpotifyURI'].str.replace(r'[^a-zA-Z0-9:-]', '', regex=True)
+                    print(f"   -> Cleaning complete.")
+                else:
+                    print(f"   -> Skipping cleaning: SpotifyURI column is not string type.")
             # --- END DATA CLEANING FIX ---
 
             # For DimPlaylist, append since we've already created the table
             if table_name == 'DimPlaylist':
-                # Only append if the CSV is not empty
                 if not df.empty:
                     df.to_sql(table_name, con=engine, if_exists='append', index=False)
                     print(f"Successfully appended {len(df)} rows into '{table_name}'.")
                 else:
                     print(f"'{table_name}' CSV is empty, skipping append.")
             else:
-                # For all other tables, replace
                 df.to_sql(table_name, con=engine, if_exists='replace', index=False)
                 print(f"Successfully loaded {len(df)} rows into '{table_name}'.")
 

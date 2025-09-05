@@ -79,8 +79,16 @@ def spotify_playlists(journey_name_filter=None, recreate=False):
                 logger.error(f"   - Failed to create playlist: {e}")
                 continue
 
-        logger.info(f" -> Successfully synced playlist. Spotify ID: {playlist_id}")
+    try:
+        playlist_url = f"https://open.spotify.com/playlist/{playlist_id}"
+    except UnboundLocalError as e:
+        logger.error(f"playlist_id is not set: {e}")
+        playlist_url = None
+    try:
+        logger.info(f" -> Successfully synced playlist. Spotify ID: {playlist_id} | {playlist_url}")
         save_playlist_id(engine, j_id, 'Spotify', playlist_id)
+    except UnboundLocalError as e:
+        logger.error(f"playlist_id is not set for logger/save: {e}")
 
 def get_track_uris(engine, journey_id, logger):
     """Fetches pre-curated track URIs for a track-level journey directly from the DWH."""
@@ -99,10 +107,45 @@ def get_track_uris(engine, journey_id, logger):
         results = connection.execute(query, {"jid": journey_id}).fetchall()
     
     logger.info(f" -> Found {len(results)} steps in DWH.")
-    track_uris = [row[0] for row in results if row[0] and isinstance(row[0], str) and row[0].startswith('spotify:track:')]
-    if len(track_uris) != len(results):
-        logger.warning(f"   - Found {len(results) - len(track_uris)} invalid or missing URIs.")
-    return track_uris
+    from spotipy.exceptions import SpotifyException
+    import spotipy
+    # Get a Spotipy client (reuse from main function if possible)
+    try:
+        sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope="playlist-modify-public playlist-modify-private"))
+    except Exception as e:
+        logger.error(f"Could not authenticate with Spotify for URI validation: {e}")
+        return []
+
+    valid_uris = []
+    invalid_uris = []
+    for row in results:
+        uri = row[0]
+        valid = False
+        if uri and isinstance(uri, str) and uri.startswith('spotify:track:'):
+            track_id = uri.split(':')[-1]
+            if len(track_id) == 22 and track_id.isalnum():
+                # Check existence on Spotify
+                try:
+                    sp.track(track_id)
+                    valid = True
+                except SpotifyException:
+                    valid = False
+                except Exception:
+                    valid = False
+        if valid:
+            valid_uris.append(uri)
+        else:
+            invalid_uris.append(uri)
+    if invalid_uris:
+        logger.error(f"   - Found {len(invalid_uris)} invalid, missing, or not found URIs. Listing them:")
+        for idx, uri in enumerate(invalid_uris, 1):
+            url = None
+            if uri and isinstance(uri, str) and uri.startswith('spotify:track:'):
+                track_id = uri.split(':')[-1]
+                if len(track_id) == 22 and track_id.isalnum():
+                    url = f"https://open.spotify.com/track/{track_id}"
+            logger.error(f"     {idx}: '{uri}'" + (f" | {url}" if url else "") + " (invalid format or not found on Spotify)")
+    return valid_uris
 
 def get_album_uris(engine, journey_id, sp, logger):
     query = text("""

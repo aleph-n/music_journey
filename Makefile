@@ -1,3 +1,5 @@
+lookup-uris:
+	python src/lookup_spotify_uris.py
 .PHONY: build playlist test-auth backup restore
 
 build:
