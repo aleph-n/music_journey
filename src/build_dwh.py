@@ -17,7 +17,8 @@ TABLES = {
     'DimRecording': 'DimRecording.csv',
     'DimJourney': 'DimJourney.csv',
     'FactJourneyStep': 'FactJourneyStep.csv',
-    'DimPlaylist': 'DimPlaylist.csv'
+    'DimPlaylist': 'DimPlaylist.csv',
+    'BridgeAlbumMovement': 'BridgeAlbumMovement.csv'
 }
 
 def build_data_warehouse():
@@ -48,7 +49,6 @@ def build_data_warehouse():
                 WorkID TEXT PRIMARY KEY,
                 WorkType TEXT,
                 Genre TEXT,
-                PrimaryArtist TEXT,
                 Title TEXT,
                 WorkDescription TEXT
             );
@@ -66,7 +66,7 @@ def build_data_warehouse():
             CREATE TABLE DimAlbum (
                 AlbumID TEXT PRIMARY KEY,
                 AlbumTitle TEXT,
-                PrimaryArtist TEXT,
+                PerformerID TEXT,
                 SpotifyURI TEXT,
                 RecordingLabel TEXT
             );
@@ -124,6 +124,16 @@ def build_data_warehouse():
                 ServicePlaylistID TEXT,
                 LastUpdatedUTC TEXT,
                 PRIMARY KEY (JourneyID, ServiceID)
+            );
+        """))
+        # BridgeAlbumMovement
+        connection.execute(text("""
+            CREATE TABLE BridgeAlbumMovement (
+                album_id TEXT,
+                movement_id TEXT,
+                track_number TEXT,
+                recording_id TEXT,
+                PRIMARY KEY (album_id, movement_id, recording_id)
             );
         """))
         connection.commit()

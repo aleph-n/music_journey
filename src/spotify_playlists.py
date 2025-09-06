@@ -96,11 +96,11 @@ def get_track_uris(engine, journey_id, logger):
     query = text("""
         SELECT
             dr.SpotifyURI,
-            COALESCE(dm.MovementTitle, dmw.Title) AS TrackTitle
+            dm.MovementTitle AS TrackTitle
         FROM FactJourneyStep fs
         JOIN DimRecording dr ON fs.RecordingID = dr.RecordingID
-        LEFT JOIN DimMovement dm ON dr.MovementID = dm.MovementID
-        LEFT JOIN DimMusicalWork dmw ON dm.WorkID = dmw.WorkID OR dr.WorkID = dmw.WorkID
+        JOIN BridgeAlbumMovement bam ON dr.RecordingID = bam.recording_id
+        JOIN DimMovement dm ON bam.movement_id = dm.MovementID
         WHERE fs.JourneyID = :jid ORDER BY fs.StepOrder;
     """)
     with engine.connect() as connection:
@@ -150,7 +150,10 @@ def get_track_uris(engine, journey_id, logger):
 def get_album_uris(engine, journey_id, sp, logger):
     query = text("""
         SELECT DISTINCT da.SpotifyURI, da.AlbumTitle
-        FROM FactJourneyStep fs JOIN DimRecording dr ON fs.RecordingID = dr.RecordingID JOIN DimAlbum da ON dr.AlbumID = da.AlbumID
+        FROM FactJourneyStep fs
+        JOIN DimRecording dr ON fs.RecordingID = dr.RecordingID
+        JOIN BridgeAlbumMovement bam ON dr.RecordingID = bam.recording_id
+        JOIN DimAlbum da ON bam.album_id = da.AlbumID
         WHERE fs.JourneyID = :jid AND da.SpotifyURI IS NOT NULL AND da.SpotifyURI != '' ORDER BY fs.StepOrder;
     """)
     with engine.connect() as connection:
