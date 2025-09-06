@@ -50,7 +50,36 @@ This project is planned in three major phases:
 
 ## **Data Schema**
 
-The data warehouse is built on a star schema, which separates the descriptive data (Dimensions) from the journey steps (Facts).
+The data warehouse uses a star schema to support both classical and non-classical music journeys. This model is designed for flexibility, clarity, and scalability, allowing you to curate playlists that span genres and formats.
 
-* **Dimensions:** DimMusicalWork, DimPerformer, DimRecording, DimJourney, DimPlaylist  
-* **Fact Table:** FactJourneyStep
+### **Why This Data Model?**
+Music journeys can be highly diverse: classical journeys often involve works, movements, and recordings, while non-classical journeys may focus on albums and tracks. Our schema supports both by:
+- Separating descriptive data (dimensions) from journey steps (facts)
+- Allowing tracks, movements, or entire albums to be sequenced in any journey
+- Supporting many-to-many relationships via bridge tables
+
+### **Table Roles and Importance**
+
+**DimMusicalWork**: Describes classical works (e.g., symphonies, concertos). Essential for journeys that reference classical compositions and their structure.
+
+**DimMovement**: Details individual movements within classical works. Used for fine-grained classical journeys, but not needed for pop/rock/album-based journeys.
+
+**DimPerformer**: Stores performer metadata. Important for classical recordings and useful for any genre where performer context matters.
+
+**DimAlbum**: Represents albums for all genres. Central for non-classical journeys and also links classical recordings to their album releases.
+
+**DimRecording**: Generalizes the concept of a track or recording. For classical, it links to movements and works; for non-classical, it simply represents a track on an album. This flexibility allows the same table to serve both genres.
+
+**BridgeAlbumMovement**: Connects albums, movements, and recordings. Critical for classical journeys to map recordings to specific movements. For non-classical, this table is optional or unused.
+
+**DimJourney**: Defines each curated journey (playlist), regardless of genre. Contains metadata and descriptive context.
+
+**FactJourneyStep**: Sequences the steps in a journey. Each step can reference a recording (track), movement, or album, allowing for flexible playlist construction. This is the heart of the journey logic.
+
+**DimPlaylist**: Tracks the state of generated playlists on external services (e.g., Spotify). Ensures updates and avoids duplication.
+
+### **Classical vs. Non-Classical Workflows**
+- **Classical:** Use DimMusicalWork, DimMovement, DimRecording, BridgeAlbumMovement, and FactJourneyStep to build journeys from works and movements.
+- **Non-Classical:** Use DimAlbum, DimRecording, and FactJourneyStep to build journeys from albums and tracks. Movements and bridge tables are not required.
+
+This model ensures you can curate any type of musical journey, from a symphony’s movements to a band’s discography, with clear relationships and extensibility.
