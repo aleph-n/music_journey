@@ -61,6 +61,11 @@ def spotify_playlists(journey_name_filter=None, recreate=False):
         if existing_playlist_id:
             logger.info(f" -> Updating existing playlist: '{j_name}'")
             try:
+                playlist_info = sp.playlist(existing_playlist_id)
+                current_playlist_name = playlist_info['name']
+                # Always update playlist name and description to match journey
+                sp.playlist_change_details(existing_playlist_id, name=j_name, description=j_desc)
+                logger.info(f"   - Updated playlist name and description to match journey: '{j_name}'")
                 sp.playlist_replace_items(existing_playlist_id, valid_item_uris[:100])
                 for i in range(100, len(valid_item_uris), 100):
                     sp.playlist_add_items(existing_playlist_id, valid_item_uris[i:i+100])
@@ -95,7 +100,7 @@ def get_track_uris(engine, journey_id, logger):
     # --- THIS QUERY IS NOW CORRECTED AND ROBUST ---
     query = text("""
         SELECT
-            dr.SpotifyURI,
+            dr.SpotifyURL,
             dm.MovementTitle AS TrackTitle
         FROM FactJourneyStep fs
         JOIN DimRecording dr ON fs.RecordingID = dr.RecordingID
@@ -119,10 +124,10 @@ def get_track_uris(engine, journey_id, logger):
     valid_uris = []
     invalid_uris = []
     for row in results:
-        uri = row[0]
+        url = row[0]
         valid = False
-        if uri and isinstance(uri, str) and uri.startswith('spotify:track:'):
-            track_id = uri.split(':')[-1]
+        if url and isinstance(url, str) and url.startswith('https://open.spotify.com/track/'):
+            track_id = url.split('/')[-1]
             if len(track_id) == 22 and track_id.isalnum():
                 # Check existence on Spotify
                 try:
@@ -133,40 +138,41 @@ def get_track_uris(engine, journey_id, logger):
                 except Exception:
                     valid = False
         if valid:
-            valid_uris.append(uri)
+            valid_uris.append(url)
         else:
-            invalid_uris.append(uri)
+            invalid_uris.append(url)
     if invalid_uris:
-        logger.error(f"   - Found {len(invalid_uris)} invalid, missing, or not found URIs. Listing them:")
-        for idx, uri in enumerate(invalid_uris, 1):
-            url = None
-            if uri and isinstance(uri, str) and uri.startswith('spotify:track:'):
-                track_id = uri.split(':')[-1]
-                if len(track_id) == 22 and track_id.isalnum():
-                    url = f"https://open.spotify.com/track/{track_id}"
-            logger.error(f"     {idx}: '{uri}'" + (f" | {url}" if url else "") + " (invalid format or not found on Spotify)")
+        logger.error(f"   - Found {len(invalid_uris)} invalid, missing, or not found URLs. Listing them:")
+        for idx, url in enumerate(invalid_uris, 1):
+            logger.error(f"     {idx}: '{url}' (invalid format or not found on Spotify)")
     return valid_uris
 
 def get_album_uris(engine, journey_id, sp, logger):
+    """
+    For album-level journeys, fetch all tracks for each album in FactJourneyStep using AlbumID.
+    """
     query = text("""
-        SELECT DISTINCT da.SpotifyURI, da.AlbumTitle
+        SELECT fs.AlbumID, da.SpotifyURL, da.AlbumTitle
         FROM FactJourneyStep fs
-        JOIN DimRecording dr ON fs.RecordingID = dr.RecordingID
-        JOIN BridgeAlbumMovement bam ON dr.RecordingID = bam.recording_id
-        JOIN DimAlbum da ON bam.album_id = da.AlbumID
-        WHERE fs.JourneyID = :jid AND da.SpotifyURI IS NOT NULL AND da.SpotifyURI != '' ORDER BY fs.StepOrder;
+        JOIN DimAlbum da ON fs.AlbumID = da.AlbumID
+        WHERE fs.JourneyID = :jid AND fs.AlbumID IS NOT NULL AND fs.AlbumID != '' AND da.SpotifyURL IS NOT NULL AND da.SpotifyURL != ''
+        ORDER BY fs.StepOrder;
     """)
     with engine.connect() as connection:
         albums = connection.execute(query, {"jid": journey_id}).fetchall()
     logger.info(f" -> Found {len(albums)} album steps. Retrieving album tracks...")
     all_uris = []
-    for uri, title in albums:
+    for album_id, url, title in albums:
         try:
-            tracks = sp.album_tracks(uri.split(':')[-1], market="US")
-            all_uris.extend([track['uri'] for track in tracks['items']])
-            logger.info(f"   - Found {len(tracks['items'])} tracks for album: '{title}'")
+            if url.startswith('https://open.spotify.com/album/'):
+                spotify_album_id = url.split('/')[-1]
+                tracks = sp.album_tracks(spotify_album_id, market="US")
+                all_uris.extend([track['uri'] for track in tracks['items']])
+                logger.info(f"   - Found {len(tracks['items'])} tracks for album: '{title}' (AlbumID: {album_id})")
+            else:
+                logger.error(f"   - Invalid Spotify album URL: {url}")
         except Exception as e:
-            logger.error(f"   - Could not fetch tracks for album '{title}'. URI: {uri}. Error: {e}")
+            logger.error(f"   - Could not fetch tracks for album '{title}'. URL: {url}. Error: {e}")
     return all_uris
 
 def get_existing_playlist_id(engine, journey_id, service_id):

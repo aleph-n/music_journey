@@ -15,7 +15,10 @@ TABLE_TO_CSV_MAP = {
     'DimRecording': 'DimRecording.csv',
     'DimJourney': 'DimJourney.csv',
     'FactJourneyStep': 'FactJourneyStep.csv',
-    'DimPlaylist': 'DimPlaylist.csv'
+    'DimPlaylist': 'DimPlaylist.csv',
+    'DimAlbum': 'DimAlbum.csv',
+    'DimMovement': 'DimMovement.csv',
+    'BridgeAlbumMovement': 'BridgeAlbumMovement.csv'
 }
 
 def backup_database_to_csv():

@@ -67,7 +67,9 @@ def build_data_warehouse():
                 AlbumID TEXT PRIMARY KEY,
                 AlbumTitle TEXT,
                 PerformerID TEXT,
-                SpotifyURI TEXT,
+                SpotifyURL TEXT,
+                SpotifyTitle TEXT,
+                SpotifyTitleMatch BOOLEAN,
                 RecordingLabel TEXT
             );
         """))
@@ -89,7 +91,9 @@ def build_data_warehouse():
                 MovementID TEXT,
                 WorkID TEXT,
                 PerformerID TEXT,
-                SpotifyURI TEXT
+                SpotifyURL TEXT,
+                SpotifyTitle TEXT,
+                SpotifyTitleMatch BOOLEAN
             );
         """))
         # DimJourney
@@ -147,14 +151,57 @@ def build_data_warehouse():
 
             df = pd.read_csv(csv_path)
 
+            # Add SpotifyTitle and SpotifyTitleMatch columns for albums and recordings
+            if table_name == 'DimAlbum' and 'SpotifyURL' in df.columns:
+                import spotipy
+                from spotipy.oauth2 import SpotifyClientCredentials
+                sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
+                df['SpotifyTitle'] = ''
+                df['SpotifyTitleMatch'] = False
+                for idx, row in df.iterrows():
+                    url = row['SpotifyURL']
+                    if isinstance(url, str) and url.startswith('https://open.spotify.com/album/'):
+                        album_id = url.split('/')[-1]
+                        try:
+                            album = sp.album(album_id)
+                            spotify_title = album['name']
+                            df.at[idx, 'SpotifyTitle'] = spotify_title
+                            df.at[idx, 'SpotifyTitleMatch'] = (spotify_title.strip().lower() == str(row['AlbumTitle']).strip().lower())
+                        except Exception:
+                            df.at[idx, 'SpotifyTitle'] = ''
+                            df.at[idx, 'SpotifyTitleMatch'] = False
+            if table_name == 'DimRecording' and 'SpotifyURL' in df.columns:
+                import spotipy
+                from spotipy.oauth2 import SpotifyClientCredentials
+                sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
+                df['SpotifyTitle'] = ''
+                df['SpotifyTitleMatch'] = False
+                # Load DimMovement for MovementTitle lookup
+                movement_path = os.path.join(DATA_DIR, 'DimMovement.csv')
+                df_movement = pd.read_csv(movement_path)
+                movement_title_map = dict(zip(df_movement['MovementID'], df_movement['MovementTitle']))
+                for idx, row in df.iterrows():
+                    url = row['SpotifyURL']
+                    if isinstance(url, str) and url.startswith('https://open.spotify.com/track/'):
+                        track_id = url.split('/')[-1]
+                        try:
+                            track = sp.track(track_id)
+                            spotify_title = track['name']
+                            df.at[idx, 'SpotifyTitle'] = spotify_title
+                            movement_title = movement_title_map.get(row['MovementID'], '')
+                            df.at[idx, 'SpotifyTitleMatch'] = (spotify_title.strip().lower() == str(movement_title).strip().lower())
+                        except Exception:
+                            df.at[idx, 'SpotifyTitle'] = ''
+                            df.at[idx, 'SpotifyTitleMatch'] = False
+
             # --- START DATA CLEANING FIX ---
-            if table_name == 'DimRecording' and 'SpotifyURI' in df.columns:
-                print(f"   -> Cleaning SpotifyURI column in {csv_file}...")
-                if df['SpotifyURI'].dtype == object:
-                    df['SpotifyURI'] = df['SpotifyURI'].str.replace(r'[^a-zA-Z0-9:-]', '', regex=True)
+            if table_name == 'DimRecording' and 'SpotifyURL' in df.columns:
+                print(f"   -> Cleaning SpotifyURL column in {csv_file}...")
+                if df['SpotifyURL'].dtype == object:
+                    df['SpotifyURL'] = df['SpotifyURL'].str.replace(r'[^a-zA-Z0-9:/._-]', '', regex=True)
                     print(f"   -> Cleaning complete.")
                 else:
-                    print(f"   -> Skipping cleaning: SpotifyURI column is not string type.")
+                    print(f"   -> Skipping cleaning: SpotifyURL column is not string type.")
             # --- END DATA CLEANING FIX ---
 
             # For DimPlaylist, append since we've already created the table

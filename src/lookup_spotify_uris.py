@@ -31,6 +31,8 @@ PERFORMER_PATH = os.path.join(DATA_DIR, "DimPerformer.csv")
 df_recording = pd.read_csv(RECORDING_PATH)
 df_movement = pd.read_csv(MOVEMENT_PATH)
 df_album = pd.read_csv(ALBUM_PATH)
+if 'SpotifyURI' in df_album.columns:
+    df_album.rename(columns={'SpotifyURI': 'SpotifyURL'}, inplace=True)
 df_performer = pd.read_csv(PERFORMER_PATH)
 
 def get_metadata(row):
@@ -112,14 +114,14 @@ def main():
     unresolved = []
     for idx, row in df_recording.iterrows():
         movement_title, album_title, performer_name = get_metadata(row)
-        album_uri = None
+        album_url = None
         if not pd.isna(row['AlbumID']):
             a = df_album[df_album['AlbumID'] == row['AlbumID']]
-            if not a.empty and 'SpotifyURI' in a.columns:
-                album_uri = a.iloc[0]['SpotifyURI']
-        if album_uri and isinstance(album_uri, str) and album_uri.startswith('spotify:album:'):
+            if not a.empty and 'SpotifyURL' in a.columns:
+                album_url = a.iloc[0]['SpotifyURL']
+        if album_url and isinstance(album_url, str) and album_url.startswith('https://open.spotify.com/album/'):
             # Use Spotify API to get album tracks
-            album_id = album_uri.split(':')[-1]
+            album_id = album_url.split('/')[-1]
             try:
                 album_tracks = sp.album_tracks(album_id)['items']
                 # Try to match by movement title
@@ -142,18 +144,18 @@ def main():
                 if not match and album_tracks:
                     match = album_tracks[0]
                 if match:
-                    df_recording.at[idx, 'SpotifyURI'] = match['uri']
-                    logger.info(f"Overwrote URI for RecordingID {row['RecordingID']} from album: {match['uri']}")
+                    df_recording.at[idx, 'SpotifyURL'] = match['uri']
+                    logger.info(f"Overwrote URL for RecordingID {row['RecordingID']} from album: {match['uri']}")
                     updated += 1
                     continue
             except Exception as e:
                 logger.error(f"Spotify album lookup error for {album_uri}: {e}")
         # Fallback to search only if no album URI or no match
-        if pd.isna(row['SpotifyURI']) or not row['SpotifyURI']:
+        if pd.isna(row['SpotifyURL']) or not row['SpotifyURL']:
             uri = search_spotify_track(movement_title, album_title, performer_name)
             if uri:
-                df_recording.at[idx, 'SpotifyURI'] = uri
-                logger.info(f"Found URI for RecordingID {row['RecordingID']}: {uri}")
+                df_recording.at[idx, 'SpotifyURL'] = uri
+                logger.info(f"Found URL for RecordingID {row['RecordingID']}: {uri}")
                 updated += 1
             else:
                 # Get descriptive fields for easier review
@@ -190,7 +192,7 @@ def main():
             writer.writerows(unresolved)
         logger.info(f"Wrote {len(unresolved)} unresolved cases to missing_spotify_uris.csv")
     df_recording.to_csv(RECORDING_PATH, index=False)
-    logger.info(f"Updated {updated} SpotifyURIs in {RECORDING_PATH}")
+    logger.info(f"Updated {updated} SpotifyURLs in {RECORDING_PATH}")
 
 if __name__ == "__main__":
     main()
