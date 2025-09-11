@@ -66,11 +66,11 @@ def build_data_warehouse():
             CREATE TABLE DimAlbum (
                 AlbumID TEXT PRIMARY KEY,
                 AlbumTitle TEXT,
-                PerformerID TEXT,
+                PrimaryArtist TEXT,
+                RecordingLabel TEXT,
                 SpotifyURL TEXT,
                 SpotifyTitle TEXT,
-                SpotifyTitleMatch BOOLEAN,
-                RecordingLabel TEXT
+                SpotifyTitleMatch BOOLEAN
             );
         """))
         # DimMovement
@@ -125,7 +125,8 @@ def build_data_warehouse():
             CREATE TABLE DimPlaylist (
                 JourneyID TEXT,
                 ServiceID TEXT,
-                ServicePlaylistID TEXT,
+                SpotifyPlaylistURL TEXT,
+                SpotifyPlaylistTitle TEXT,
                 LastUpdatedUTC TEXT,
                 PRIMARY KEY (JourneyID, ServiceID)
             );

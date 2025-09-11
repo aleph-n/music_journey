@@ -86,12 +86,19 @@ def spotify_playlists(journey_name_filter=None, recreate=False):
 
     try:
         playlist_url = f"https://open.spotify.com/playlist/{playlist_id}"
+        # Fetch actual playlist title from Spotify API
+        playlist_info = sp.playlist(playlist_id)
+        playlist_title = playlist_info.get('name', None)
     except UnboundLocalError as e:
         logger.error(f"playlist_id is not set: {e}")
         playlist_url = None
+        playlist_title = None
+    except Exception as e:
+        logger.error(f"Failed to fetch playlist info for title: {e}")
+        playlist_title = None
     try:
         logger.info(f" -> Successfully synced playlist. Spotify ID: {playlist_id} | {playlist_url}")
-        save_playlist_id(engine, j_id, 'Spotify', playlist_id)
+        save_playlist_id(engine, j_id, 'Spotify', playlist_id, playlist_title)
     except UnboundLocalError as e:
         logger.error(f"playlist_id is not set for logger/save: {e}")
 
@@ -176,15 +183,15 @@ def get_album_uris(engine, journey_id, sp, logger):
     return all_uris
 
 def get_existing_playlist_id(engine, journey_id, service_id):
-    query = text("SELECT ServicePlaylistID FROM DimPlaylist WHERE JourneyID = :jid AND ServiceID = :sid")
+    query = text("SELECT SpotifyPlaylistURL FROM DimPlaylist WHERE JourneyID = :jid AND ServiceID = :sid")
     with engine.connect() as connection:
         return connection.execute(query, {"jid": journey_id, "sid": service_id}).scalar_one_or_none()
 
-def save_playlist_id(engine, journey_id, service_id, playlist_id):
+def save_playlist_id(engine, journey_id, service_id, playlist_id, playlist_title):
     now_utc = datetime.now(timezone.utc).isoformat()
-    query = text("""INSERT INTO DimPlaylist (JourneyID, ServiceID, ServicePlaylistID, LastUpdatedUTC) VALUES (:jid, :sid, :pid, :ts) ON CONFLICT(JourneyID, ServiceID) DO UPDATE SET ServicePlaylistID = excluded.ServicePlaylistID, LastUpdatedUTC = excluded.LastUpdatedUTC;""")
+    query = text("""INSERT INTO DimPlaylist (JourneyID, ServiceID, SpotifyPlaylistURL, SpotifyPlaylistTitle, LastUpdatedUTC) VALUES (:jid, :sid, :pid, :ptitle, :ts) ON CONFLICT(JourneyID, ServiceID) DO UPDATE SET SpotifyPlaylistURL = excluded.SpotifyPlaylistURL, SpotifyPlaylistTitle = excluded.SpotifyPlaylistTitle, LastUpdatedUTC = excluded.LastUpdatedUTC;""")
     with engine.connect() as connection:
-        connection.execute(query, {"jid": journey_id, "sid": service_id, "pid": playlist_id, "ts": now_utc})
+        connection.execute(query, {"jid": journey_id, "sid": service_id, "pid": playlist_id, "ptitle": playlist_title, "ts": now_utc})
         connection.commit()
 
 def clear_playlist_id(engine, journey_id, service_id):
