@@ -39,12 +39,42 @@ def main():
     parser_backup = subparsers.add_parser('backup', help='Exports the SQLite database back to CSV files.')
     parser_backup.set_defaults(func=backup_database_to_csv)
 
+    # Command: import-spotify-playlist
+    parser_import = subparsers.add_parser('import-spotify-playlist', help='Imports a Spotify playlist and creates a journey.')
+    parser_import.add_argument(
+        'SpotifyPlaylistURL',
+        type=str,
+        help='The Spotify playlist URL to import.'
+    )
+    parser_import.add_argument(
+        '--journey-id',
+        type=str,
+        default=None,
+        help='(Optional) The JourneyID to use for the new journey.'
+    )
+    parser_import.add_argument(
+        '--granularity',
+        type=str,
+        choices=['Album', 'Track'],
+        default='Track',
+        help='(Optional) Granularity for journey steps: Album or Track.'
+    )
+    def import_spotify_playlist_cli(SpotifyPlaylistURL, journey_id=None, granularity="Track"):
+        from src.import_spotify_playlist import import_spotify_playlist
+        import_spotify_playlist(SpotifyPlaylistURL, journey_id=journey_id, granularity=granularity)
+    parser_import.set_defaults(func=import_spotify_playlist_cli)
+
     args = parser.parse_args()
     
     # Call the function associated with the chosen command
     if args.command == 'playlist':
-        # --- MODIFY THIS CALL to pass the new argument ---
         args.func(journey_name_filter=args.name, recreate=args.recreate)
+    elif args.command == 'import-spotify-playlist':
+        args.func(
+            args.SpotifyPlaylistURL,
+            journey_id=args.journey_id,
+            granularity=args.granularity
+        )
     else:
         args.func()
 

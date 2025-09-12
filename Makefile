@@ -1,6 +1,6 @@
 lookup-uris:
 	python src/lookup_spotify_uris.py
-.PHONY: build playlist test-auth backup restore
+.PHONY: build playlist test-auth backup restore import-spotify-playlist
 
 build:
 	@echo "--- Building Data Warehouse ---"
@@ -36,4 +36,9 @@ restore:
 	echo "Restoring from: $$latest_backup"; \
 	tar -xzf $$latest_backup -C ./
 	@echo "Restore complete. Run 'make build' to rebuild the DWH from the restored CSVs."
+
+# Import a Spotify playlist by URL
+import-spotify-playlist:
+	@echo "--- Importing Spotify Playlist: $(SpotifyPlaylistURL) ---"
+	@docker-compose run --rm dwh-manager python src/import_spotify_playlist.py $(SpotifyPlaylistURL)
 

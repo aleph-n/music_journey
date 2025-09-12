@@ -49,6 +49,7 @@ def build_data_warehouse():
                 WorkID TEXT PRIMARY KEY,
                 WorkType TEXT,
                 Genre TEXT,
+                PrimaryArtist TEXT,
                 Title TEXT,
                 WorkDescription TEXT
             );
@@ -56,21 +57,23 @@ def build_data_warehouse():
         # DimPerformer
         connection.execute(text("""
             CREATE TABLE DimPerformer (
-                PerformerID TEXT PRIMARY KEY,
-                PerformerName TEXT,
+                PerformerID INTEGER PRIMARY KEY,
+                PerformerName TEXT UNIQUE,
                 InstrumentOrRole TEXT
             );
         """))
         # DimAlbum
         connection.execute(text("""
             CREATE TABLE DimAlbum (
-                AlbumID TEXT PRIMARY KEY,
+                AlbumID INTEGER PRIMARY KEY,
                 AlbumTitle TEXT,
-                PrimaryArtist TEXT,
+                PerformerID INTEGER,
                 RecordingLabel TEXT,
                 SpotifyURL TEXT,
                 SpotifyTitle TEXT,
-                SpotifyTitleMatch BOOLEAN
+                SpotifyTitleMatch BOOLEAN,
+                SpotifyReleaseDate TEXT,
+                SpotifyGenre TEXT
             );
         """))
         # DimMovement
@@ -113,6 +116,7 @@ def build_data_warehouse():
                 JourneyStepID TEXT PRIMARY KEY,
                 JourneyID TEXT,
                 RecordingID TEXT,
+                AlbumID TEXT,
                 StepOrder TEXT,
                 ActNumber TEXT,
                 ActTitle TEXT,
@@ -159,6 +163,7 @@ def build_data_warehouse():
                 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
                 df['SpotifyTitle'] = ''
                 df['SpotifyTitleMatch'] = False
+                # No mapping needed, PerformerID is already present
                 for idx, row in df.iterrows():
                     url = row['SpotifyURL']
                     if isinstance(url, str) and url.startswith('https://open.spotify.com/album/'):
@@ -213,8 +218,11 @@ def build_data_warehouse():
                 else:
                     print(f"'{table_name}' CSV is empty, skipping append.")
             else:
-                df.to_sql(table_name, con=engine, if_exists='replace', index=False)
-                print(f"Successfully loaded {len(df)} rows into '{table_name}'.")
+                if not df.empty:
+                    df.to_sql(table_name, con=engine, if_exists='append', index=False)
+                    print(f"Successfully loaded {len(df)} rows into '{table_name}'.")
+                else:
+                    print(f"'{table_name}' CSV is empty, skipping append.")
 
         except FileNotFoundError:
             print(f"ERROR: CSV file not found at {csv_path}. Skipping table '{table_name}'.")
