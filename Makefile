@@ -40,5 +40,8 @@ restore:
 # Import a Spotify playlist by URL
 import-spotify-playlist:
 	@echo "--- Importing Spotify Playlist: $(SpotifyPlaylistURL) ---"
-	@docker-compose run --rm dwh-manager python src/import_spotify_playlist.py $(SpotifyPlaylistURL)
+	@docker-compose run --rm dwh-manager python /app/src/import_spotify_playlist.py $(PLAYLIST_URL) --journey-id $(JOURNEY_ID) --granularity $(GRANULARITY)
+
+# Usage:
+# make import PLAYLIST_URL="https://open.spotify.com/playlist/your_playlist_url" JOURNEY_ID="your_journey_id" GRANULARITY="Album"
 

@@ -73,7 +73,8 @@ def build_data_warehouse():
                 SpotifyTitle TEXT,
                 SpotifyTitleMatch BOOLEAN,
                 SpotifyReleaseDate TEXT,
-                SpotifyGenre TEXT
+                SpotifyGenre TEXT,
+                UNIQUE(AlbumTitle, PerformerID)
             );
         """))
         # DimMovement
@@ -113,15 +114,16 @@ def build_data_warehouse():
         # FactJourneyStep
         connection.execute(text("""
             CREATE TABLE FactJourneyStep (
-                JourneyStepID TEXT PRIMARY KEY,
+                JourneyStepID INTEGER PRIMARY KEY,
                 JourneyID TEXT,
                 RecordingID TEXT,
-                AlbumID TEXT,
-                StepOrder TEXT,
+                AlbumID INTEGER,
+                StepOrder INTEGER,
                 ActNumber TEXT,
                 ActTitle TEXT,
                 CurationNotes TEXT,
-                WhyThisRecording TEXT
+                WhyThisRecording TEXT,
+                UNIQUE(JourneyID, StepOrder)
             );
         """))
         # DimPlaylist
