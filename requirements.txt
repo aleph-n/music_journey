@@ -2,3 +2,5 @@ pandas
 SQLAlchemy
 spotipy
 python-dotenv
+ruff
+black

@@ -1,6 +1,4 @@
-lookup-uris:
-	python src/lookup_spotify_uris.py
-.PHONY: build playlist test-auth backup restore import-spotify-playlist
+.PHONY: build playlist playlist-recreate test-auth backup restore import-spotify-playlist lint format
 
 build:
 	@echo "--- Building Data Warehouse ---"
@@ -12,7 +10,7 @@ playlist:
 
 playlist-recreate:
 	@echo "--- FORCE RECREATING all Spotify Playlists ---"
-	@docker-compose run --rm dwh-manager python main.py playlist --recreate
+	@docker-compose run --rm d-manager python main.py playlist --recreate
 
 test-auth:
 	@echo "--- Testing Spotify Authentication ---"
@@ -37,11 +35,13 @@ restore:
 	tar -xzf $$latest_backup -C ./
 	@echo "Restore complete. Run 'make build' to rebuild the DWH from the restored CSVs."
 
-# Import a Spotify playlist by URL
 import-spotify-playlist:
 	@echo "--- Importing Spotify Playlist: $(SpotifyPlaylistURL) ---"
 	@docker-compose run --rm dwh-manager python /app/src/import_spotify_playlist.py $(PLAYLIST_URL) --journey-id $(JOURNEY_ID) --granularity $(GRANULARITY)
 
-# Usage:
-# make import PLAYLIST_URL="https://open.spotify.com/playlist/your_playlist_url" JOURNEY_ID="your_journey_id" GRANULARITY="Album"
+lint:
+	ruff check src/ main.py README.md journeys/*.md
+
+format:
+	black src/ main.py
 
