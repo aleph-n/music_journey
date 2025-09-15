@@ -40,7 +40,7 @@ import-spotify-playlist:
 	@docker-compose run --rm dwh-manager python /app/src/import_spotify_playlist.py $(PLAYLIST_URL) --journey-id $(JOURNEY_ID) --granularity $(GRANULARITY)
 
 lint:
-	ruff check src/ main.py README.md journeys/*.md
+	ruff check --fix src/ main.py
 
 format:
 	black src/ main.py

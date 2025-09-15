@@ -40,7 +40,7 @@ def spotify_playlists(journey_name_filter=None, recreate=False):
         ).fetchall()
 
     if not journeys:
-        logger.warning(f"No journeys found.")
+        logger.warning("No journeys found.")
         return
 
     for journey in journeys:
@@ -53,7 +53,7 @@ def spotify_playlists(journey_name_filter=None, recreate=False):
             try:
                 sp.current_user_unfollow_playlist(existing_playlist_id)
                 clear_playlist_id(engine, j_id, "Spotify")
-                logger.info(f" -> Deleted playlist and cleared local state.")
+                logger.info(" -> Deleted playlist and cleared local state.")
                 existing_playlist_id = None
             except Exception as e:
                 logger.error(f" -> Failed to delete playlist: {e}")
@@ -70,25 +70,57 @@ def spotify_playlists(journey_name_filter=None, recreate=False):
             continue
 
         if existing_playlist_id:
-            logger.info(f" -> Updating existing playlist: '{j_name}'")
+            logger.info(f" -> Attempting to update existing playlist: '{j_name}'")
             try:
                 playlist_info = sp.playlist(existing_playlist_id)
-                current_playlist_name = playlist_info["name"]
-                # Always update playlist name and description to match journey
-                sp.playlist_change_details(
-                    existing_playlist_id, name=j_name, description=j_desc
-                )
-                logger.info(
-                    f"   - Updated playlist name and description to match journey: '{j_name}'"
-                )
-                sp.playlist_replace_items(existing_playlist_id, valid_item_uris[:100])
-                for i in range(100, len(valid_item_uris), 100):
-                    sp.playlist_add_items(
-                        existing_playlist_id, valid_item_uris[i : i + 100]
+                playlist_title = playlist_info.get("name", "")
+                playlist_desc = playlist_info.get("description", "")
+                playlist_tracks = [
+                    item["track"]["uri"]
+                    for item in playlist_info["tracks"]["items"]
+                    if item.get("track")
+                ]
+
+                # Update name only if different
+                if playlist_title != j_name:
+                    sp.playlist_change_details(existing_playlist_id, name=j_name)
+                    logger.info(
+                        f"   - Playlist name updated to match journey: '{j_name}'."
                     )
+                else:
+                    logger.info(
+                        f"   - Playlist name already matches journey: '{j_name}'. No update needed."
+                    )
+
+                # Update description only if different
+                if playlist_desc != j_desc:
+                    sp.playlist_change_details(existing_playlist_id, description=j_desc)
+                    logger.info("   - Playlist description updated to match journey.")
+                else:
+                    logger.info(
+                        "   - Playlist description already matches journey. No update needed."
+                    )
+
+                # Update tracks only if different
+                if set(playlist_tracks) != set(valid_item_uris):
+                    sp.playlist_replace_items(
+                        existing_playlist_id, valid_item_uris[:100]
+                    )
+                    for i in range(100, len(valid_item_uris), 100):
+                        sp.playlist_add_items(
+                            existing_playlist_id, valid_item_uris[i : i + 100]
+                        )
+                    logger.info(
+                        f"   - Playlist tracks updated: {len(valid_item_uris)} tracks now in playlist."
+                    )
+                else:
+                    logger.info(
+                        "   - Playlist tracks already match journey steps. No update needed."
+                    )
+
                 playlist_id = existing_playlist_id
             except Exception as e:
-                logger.error(f"   - Failed to update playlist: {e}")
+                logger.error(f"   - Playlist update failed: {e}")
                 continue
         else:
             logger.info(f" -> Creating new playlist: '{j_name}'")

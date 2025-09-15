@@ -1,12 +1,12 @@
 import os
 from dotenv import load_dotenv
-
-load_dotenv()
-from logger import setup_logger
+import logging
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from sqlalchemy import create_engine, text
 from datetime import datetime, timezone
+
+load_dotenv()
 
 # --- Configuration ---
 OUTPUT_DIR = "output"
@@ -17,8 +17,6 @@ DB_PATH = os.path.join(OUTPUT_DIR, DB_NAME)
 
 
 def import_spotify_playlist(playlist_url, journey_id=None, granularity="Track"):
-
-    import logging
 
     logger = logging.getLogger("import_spotify_playlist")
     logger.setLevel(logging.INFO)
@@ -168,7 +166,13 @@ def import_spotify_playlist(playlist_url, journey_id=None, granularity="Track"):
                 )
                 spotify_title = album.get("name", None)
                 release_date = album.get("release_date", None)
-                release_precision = album.get("release_date_precision", None)
+                release_year = None
+                if release_date:
+                    # release_date can be 'YYYY', 'YYYY-MM', or 'YYYY-MM-DD'
+                    try:
+                        release_year = int(release_date[:4])
+                    except (ValueError, TypeError):
+                        release_year = None
                 label = album.get("label", None)
                 spotify_genre = (
                     ",".join(album.get("genres", [])) if album.get("genres") else None
@@ -183,12 +187,12 @@ def import_spotify_playlist(playlist_url, journey_id=None, granularity="Track"):
                         SpotifyGenre=excluded.SpotifyGenre,
                         SpotifyURL=excluded.SpotifyURL,
                         SpotifyTitle=excluded.SpotifyTitle
-                """
+                    """
                 )
                 album_params = {
                     "title": title,
                     "pid": performer_id,
-                    "reldate": release_date,
+                    "reldate": release_year,
                     "label": label,
                     "spotify_genre": spotify_genre,
                     "spotify_url": spotify_url,
@@ -210,14 +214,7 @@ def import_spotify_playlist(playlist_url, journey_id=None, granularity="Track"):
             # Track unique albums for album-level journeys
             album_keys = set()
             step_order = 1
-            result = connection.execute(
-                text("SELECT MAX(JourneyStepID) FROM FactJourneyStep")
-            )
-            max_id = result.scalar()
-            try:
-                next_step_id = (int(float(max_id)) if max_id is not None else 0) + 1
-            except ValueError:
-                next_step_id = 1
+            # Removed unused max_id assignment
             for item in tracks:
                 track = item["track"]
                 logger.info(
@@ -296,6 +293,86 @@ def import_spotify_playlist(playlist_url, journey_id=None, granularity="Track"):
                         )
                 step_order += 1
             logger.info(f"Imported {step_order-1} steps for journey {journey_id}.")
+            # --- Import Verification Step ---
+            logger.info("Starting import verification...")
+            # Fetch journey steps from DB
+            if granularity == "Album":
+                db_steps = connection.execute(
+                    text(
+                        "SELECT StepOrder, AlbumID FROM FactJourneyStep WHERE JourneyID = :jid ORDER BY StepOrder"
+                    ),
+                    {"jid": journey_id},
+                ).fetchall()
+                # Build expected steps from playlist
+                expected_steps = []
+                album_keys = set()
+                order = 1
+                for item in tracks:
+                    track = item["track"]
+                    main_artist = (
+                        track["artists"][0] if track["artists"] else {"name": "Unknown"}
+                    )
+                    performer_id = get_or_create_performer(main_artist)
+                    album_id_spotify = track["album"]["id"]
+                    album_api = sp.album(album_id_spotify)
+                    album_id = get_or_create_album(album_api, performer_id)
+                    album_key = (album_id, performer_id)
+                    if album_key in album_keys:
+                        continue
+                    album_keys.add(album_key)
+                    expected_steps.append((order, album_id))
+                    order += 1
+                # Compare
+                match_count = len(db_steps) == len(expected_steps)
+                match_order = all(
+                    db == exp for db, exp in zip(db_steps, expected_steps)
+                )
+                logger.info(
+                    f"Verification: DB steps={len(db_steps)}, Playlist albums={len(expected_steps)}"
+                )
+                if match_count and match_order:
+                    logger.info(
+                        "Import verification PASSED: Album steps match playlist order and count."
+                    )
+                else:
+                    logger.warning(
+                        "Import verification FAILED: Album steps do not match playlist."
+                    )
+                    # Log mismatches
+                    for i, (db, exp) in enumerate(zip(db_steps, expected_steps)):
+                        if db != exp:
+                            logger.warning(f"Step {i+1}: DB={db}, Playlist={exp}")
+            else:
+                db_steps = connection.execute(
+                    text(
+                        "SELECT StepOrder, RecordingID FROM FactJourneyStep WHERE JourneyID = :jid ORDER BY StepOrder"
+                    ),
+                    {"jid": journey_id},
+                ).fetchall()
+                expected_steps = []
+                order = 1
+                for item in tracks:
+                    track = item["track"]
+                    expected_steps.append((order, track["id"]))
+                    order += 1
+                match_count = len(db_steps) == len(expected_steps)
+                match_order = all(
+                    db == exp for db, exp in zip(db_steps, expected_steps)
+                )
+                logger.info(
+                    f"Verification: DB steps={len(db_steps)}, Playlist tracks={len(expected_steps)}"
+                )
+                if match_count and match_order:
+                    logger.info(
+                        "Import verification PASSED: Track steps match playlist order and count."
+                    )
+                else:
+                    logger.warning(
+                        "Import verification FAILED: Track steps do not match."
+                    )
+                    for i, (db, exp) in enumerate(zip(db_steps, expected_steps)):
+                        if db != exp:
+                            logger.warning(f"Step {i+1}: DB={db}, Playlist={exp}")
             # ...existing code...
             trans.commit()
             logger.info("All upserts committed successfully.")

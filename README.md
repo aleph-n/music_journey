@@ -36,9 +36,51 @@ This project uses a Makefile to provide simple, memorable commands for all commo
   * This command queries your DWH and syncs all defined journeys with your Spotify account.  
   *   make playlist
 
+* **Import a Specific Spotify Playlist:**  
+  * This command imports an existing Spotify playlist into the system, creating a new journey from it.  
+  *   make import-spotify-playlist PLAYLIST\_URL=<url> JOURNEY\_ID=<id> GRANULARITY=<Track|Album>
+  *   Example: make import-spotify-playlist PLAYLIST\_URL=https://open.spotify.com/playlist/4D7yVkvNm1UwbpFbLfDw5k JOURNEY\_ID=la\_extraterrestre\_01 GRANULARITY=Album
+
 * **Test Spotify Authentication:**  
   * Use this command to quickly check if your API credentials are working.  
   *   make test-auth
+
+* **Backup/Restore:**
+  - `make backup`
+  - `make restore`
+
+* **Lint & Format:**
+  - `make lint` (auto-fixes with ruff)
+  - `make format` (auto-formats with black)
+
+### CLI Entrypoint
+
+You can also run the import directly:
+
+```sh
+python src/import_spotify_playlist.py <playlist_url> --journey-id <id> --granularity <Track|Album>
+```
+
+### Linting & Formatting
+
+- All Python code is checked and auto-fixed with `ruff` and formatted with `black`.
+- Run `make lint` and `make format` to ensure code quality before committing.
+
+### Playlist Import Validation
+
+- To validate a playlist import, use the Makefile rule with the correct parameters.
+- Example:
+  - Playlist: "La extraterrestre"
+  - JourneyID: `la_extraterrestre_01`
+  - Granularity: `Album`
+  - Spotify URL: `https://open.spotify.com/playlist/4D7yVkvNm1UwbpFbLfDw5k?si=2426e57ae5324ecb`
+- After import, verify the database contents using SQLite queries:
+
+```sh
+sqlite3 output/music_journeys.db 'SELECT JourneyID, StepOrder, AlbumID FROM FactJourneyStep WHERE JourneyID="la_extraterrestre_01" ORDER BY StepOrder;'
+```
+
+This will show the imported steps and confirm the workflow is working as intended.
 
 ## **Project Roadmap**
 

@@ -83,7 +83,7 @@ def build_data_warehouse():
                 SpotifyURL TEXT,
                 SpotifyTitle TEXT,
                 SpotifyTitleMatch BOOLEAN,
-                SpotifyReleaseDate TEXT,
+                SpotifyReleaseDate INTEGER,
                 SpotifyGenre TEXT,
                 UNIQUE(AlbumTitle, PerformerID)
             );
@@ -109,7 +109,7 @@ def build_data_warehouse():
             text(
                 """
             CREATE TABLE DimRecording (
-                RecordingID TEXT PRIMARY KEY,
+                RecordingID INTEGER PRIMARY KEY,
                 AlbumID TEXT,
                 MovementID TEXT,
                 WorkID TEXT,
@@ -143,7 +143,7 @@ def build_data_warehouse():
             CREATE TABLE FactJourneyStep (
                 JourneyStepID INTEGER PRIMARY KEY,
                 JourneyID TEXT,
-                RecordingID TEXT,
+                RecordingID INTEGER,
                 AlbumID INTEGER,
                 StepOrder INTEGER,
                 ActNumber TEXT,
@@ -262,10 +262,10 @@ def build_data_warehouse():
                     df["SpotifyURL"] = df["SpotifyURL"].str.replace(
                         r"[^a-zA-Z0-9:/._-]", "", regex=True
                     )
-                    print(f"   -> Cleaning complete.")
+                    print("   -> Cleaning complete.")
                 else:
                     print(
-                        f"   -> Skipping cleaning: SpotifyURL column is not string type."
+                        "   -> Skipping cleaning: SpotifyURL column is not string type."
                     )
             # --- END DATA CLEANING FIX ---
 
