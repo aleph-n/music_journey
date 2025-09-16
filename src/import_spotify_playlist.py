@@ -5,6 +5,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from sqlalchemy import create_engine, text
 from datetime import datetime, timezone
+from generate_dwh_journey import generate_dwh_journey
 
 load_dotenv()
 
@@ -373,7 +374,12 @@ def import_spotify_playlist(playlist_url, journey_id=None, granularity="Track"):
                     for i, (db, exp) in enumerate(zip(db_steps, expected_steps)):
                         if db != exp:
                             logger.warning(f"Step {i+1}: DB={db}, Playlist={exp}")
-            # ...existing code...
+            # Call Gemini essay generation
+            try:
+                generate_dwh_journey(journey_id, granularity)
+                logger.info(f"Generated Gemini journey essay for {journey_id}.")
+            except Exception as e:
+                logger.error(f"Failed to generate Gemini journey essay: {e}")
             trans.commit()
             logger.info("All upserts committed successfully.")
         except Exception as e:
