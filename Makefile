@@ -1,3 +1,13 @@
+# Generate a listening journey markdown using Gemini inside the container
+generate-gemini-journey:
+	docker compose run --rm dwh-manager python src/generate_gemini_journey.py \
+		--template journeys/journey_prompt_template.md \
+		--output journeys/$(OUTPUT) \
+		--artist "$(ARTIST)" \
+		--granularity "$(GRANULARITY)" \
+		--theme "$(THEME)" \
+		--emotions "$(EMOTIONS)" \
+		--sound "$(SOUND)"
 .PHONY: build playlist playlist-recreate test-auth backup restore import-spotify-playlist lint format
 
 build:

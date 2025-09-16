@@ -1,3 +1,6 @@
+spotipy
+jinja2
+python-dotenv
 pandas
 SQLAlchemy
 spotipy

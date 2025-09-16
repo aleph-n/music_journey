@@ -11,5 +11,6 @@ services:
       - ./.cache:/app/.cache
       - ./src:/app/src
       - ./main.py:/app/main.py
+      - ./journeys:/app/journeys
     env_file:
       - .env
