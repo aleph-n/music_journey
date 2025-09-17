@@ -5,7 +5,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from sqlalchemy import create_engine, text
 from datetime import datetime, timezone
-from generate_dwh_journey import generate_dwh_journey
+from src.generate_dwh_journey import generate_dwh_journey
 
 load_dotenv()
 

@@ -46,8 +46,8 @@ restore:
 	@echo "Restore complete. Run 'make build' to rebuild the DWH from the restored CSVs."
 
 import-spotify-playlist:
-	@echo "--- Importing Spotify Playlist: $(SpotifyPlaylistURL) ---"
-	@docker-compose run --rm dwh-manager python /app/src/import_spotify_playlist.py $(PLAYLIST_URL) --journey-id $(JOURNEY_ID) --granularity $(GRANULARITY)
+	@echo "--- Importing Spotify Playlist: $(PLAYLIST_URL) ---"
+	@docker compose run --rm dwh-manager python main.py import-spotify-playlist $(PLAYLIST_URL) --journey-id $(JOURNEY_ID) --granularity $(GRANULARITY)
 
 lint:
 	ruff check --fix src/ main.py

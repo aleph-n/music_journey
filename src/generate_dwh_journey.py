@@ -94,14 +94,23 @@ def generate_dwh_journey(journey_id, granularity="Album", template_path="journey
     steps = extract_journey_steps(journey_id, granularity)
     # Fetch JourneyName from DimJourney
     db_path = os.path.join("output", "music_journeys.db")
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT JourneyName FROM DimJourney WHERE JourneyID = ?", (journey_id,))
-    result = cursor.fetchone()
-    journey_name = result[0] if result else journey_id
-    conn.close()
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT JourneyName FROM DimJourney WHERE JourneyID = ?", (journey_id,))
+        result = cursor.fetchone()
+        journey_name = result[0] if result else journey_id
     prompt = prepare_gemini_prompt(template_path, steps)
     markdown = send_to_gemini(prompt)
     # Prepend markdown with title
     markdown = f"# {journey_name}\n\n" + markdown
     save_markdown(journey_id, markdown)
+    # Sync markdown to DB and verify
+    from src.sync_journey_md_to_db import upsert_journey_to_db, verify_md_db_match, parse_journey_md
+    md_path = f"journeys/{journey_id}.md"
+    journey_title, steps = parse_journey_md(md_path)
+    upsert_journey_to_db(journey_id, journey_title, steps)
+    match = verify_md_db_match(journey_id, md_path)
+    if match:
+        print(f"Journey markdown and database are in sync for {journey_id}.")
+    else:
+        print(f"WARNING: Journey markdown and database do not match for {journey_id}.")

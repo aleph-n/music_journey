@@ -63,6 +63,16 @@ def generate_user_journey(prompt_text, output_path, gemini_api_key):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(markdown)
     print(f"Journey markdown saved to {output_path}")
+    # Sync markdown to DB and verify
+    from sync_journey_md_to_db import upsert_journey_to_db, verify_md_db_match, parse_journey_md
+    journey_id = os.path.splitext(os.path.basename(output_path))[0]
+    journey_title, steps = parse_journey_md(output_path)
+    upsert_journey_to_db(journey_id, journey_title, steps)
+    match = verify_md_db_match(journey_id, output_path)
+    if match:
+        print(f"Journey markdown and database are in sync for {journey_id}.")
+    else:
+        print(f"WARNING: Journey markdown and database do not match for {journey_id}.")
 
 if __name__ == "__main__":
     import argparse
