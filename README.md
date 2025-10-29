@@ -1,4 +1,56 @@
+
 # **The Natural Language Music Journey Engine**
+
+## Gemini AI Integration & Automated Journey Generation
+
+This project now integrates Gemini AI to automatically generate rich, narrative-driven music journey markdown files from either natural language prompts or imported Spotify playlists. The generated markdown is parsed and upserted into the local data warehouse, ensuring all journey metadata and steps are always in sync.
+
+### Key Features Added
+- **Gemini AI Markdown Generation:** Use Gemini to create immersive journey essays and playlist metadata from prompts or playlist imports.
+- **Automated Database Upserts:** After markdown generation, journey metadata and steps are parsed and upserted into the SQLite data warehouse.
+- **Validation & Sync:** The system verifies that the markdown and database are consistent after each import or generation.
+- **Flexible CLI & Makefile:** Easily run imports, generate journeys, and sync data using simple commands.
+
+### How It Works
+1. **Import a Spotify Playlist:**
+  - Use `make import-spotify-playlist PLAYLIST_URL=<url> JOURNEY_ID=<id> GRANULARITY=<Track|Album>`
+  - The playlist is imported, and a journey markdown file is generated using Gemini AI.
+2. **Generate Journey from Prompt:**
+  - Use `make generate-gemini-journey` with your desired variables and prompt template.
+  - Gemini creates a markdown journey, which is then parsed and upserted into the database.
+3. **Database Sync:**
+  - All journey steps and metadata are automatically upserted into the database, ensuring no duplicates and full consistency.
+4. **Validation:**
+  - After each operation, the system checks that the markdown and database match.
+
+### Example Workflow
+```sh
+make import-spotify-playlist PLAYLIST_URL=https://open.spotify.com/playlist/4D7yVkvNm1UwbpFbLfDw5k JOURNEY_ID=la_extraterrestre_01 GRANULARITY=Album
+```
+This will:
+- Import the playlist
+- Generate a Gemini-powered journey markdown file
+- Upsert all journey data into the database
+- Validate the sync between markdown and database
+
+### Requirements
+- Python 3.9+
+- Docker
+- Gemini API key (add to `.env`)
+- Spotify API credentials (add to `.env`)
+
+### Main CLI Commands
+- `make build` — Build the data warehouse from CSVs
+- `make import-spotify-playlist` — Import a playlist and generate a journey
+- `make generate-gemini-journey` — Generate a journey from a prompt
+- `make playlist` — Sync journeys to Spotify
+- `make backup` / `make restore` — Backup/restore the database
+
+### Advanced
+- Markdown templates for Gemini prompts are in `journeys/`
+- All code for Gemini integration is in `src/generate_dwh_journey.py`, `src/generate_user_journey.py`, and `src/sync_journey_md_to_db.py`
+
+---
 
 This project is a sophisticated ETL pipeline and automation tool designed to create deeply personal, emotionally resonant music playlists. It uses a local data warehouse to store curated musical "journeys" and leverages the Spotify API to generate and manage these playlists programmatically.
 
